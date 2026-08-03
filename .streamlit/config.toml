@@ -1,0 +1,6 @@
+[server]
+# Screenshots are read from disk by path — the only browser upload is the .p8 key.
+maxUploadSize = 5
+
+[browser]
+gatherUsageStats = false
