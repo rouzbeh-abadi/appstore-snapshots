@@ -1,0 +1,17 @@
+{
+  "bundle_id": "com.example.myapp",
+  "platform": "IOS",
+
+  "devices": {
+    "iPad-13-Landscape": "APP_IPAD_PRO_3GEN_129",
+    "iPhone-6.9": "APP_IPHONE_67",
+    "Hero-Shots-Big-Phone": "APP_IPHONE_67",
+    "Marketing-Tablet": "APP_IPAD_PRO_3GEN_11"
+  },
+
+  "languages": {
+    "brazil": "pt-BR",
+    "chinese": "zh-Hans",
+    "italiano": "it"
+  }
+}
