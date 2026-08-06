@@ -1,5 +1,7 @@
 # appstore-snapshots
 
+[![CI](https://github.com/rouzbeh-abadi/appstore-snapshots/actions/workflows/ci.yml/badge.svg)](https://github.com/rouzbeh-abadi/appstore-snapshots/actions/workflows/ci.yml)
+
 Upload App Store screenshots straight from your folders to App Store Connect —
 no Fastlane, no Ruby.
 
@@ -117,8 +119,8 @@ The whole page is three things:
 2. **App Store Connect** — just the app bundle ID. The Key ID, Issuer ID and the
    path to the `.p8` all come from your `.env`; if `ASC_KEY_PATH` is empty the page
    offers a file upload instead. The key is held in memory, never written to disk.
-3. **Upload** — with a **dry run** checkbox that plans everything and changes
-   nothing. It targets the newest editable version of the app by itself.
+3. **Upload** — one button. It picks the newest editable version of the app by
+   itself and names the version it wrote to when it finishes.
 
 *Advanced* holds just two things: the locale for screenshots with no language
 folder, and replace-vs-append.
@@ -266,8 +268,15 @@ that fails part-way is deleted so no half-uploaded image is left behind.
 uv run pytest
 ```
 
+Every push and pull request to `main` runs the same checks on Ubuntu and macOS
+via [GitHub Actions](.github/workflows/ci.yml): `ruff check`, `ruff format
+--check` and `pytest`. macOS is in the matrix because that is where the tool is
+used, and its case-insensitive filesystem is something the folder-name tests
+care about.
+
 ## Safety notes
 
 * `.p8` files are gitignored; the UI never writes the key to disk.
-* `--dry-run` (CLI) and the dry-run toggle (UI) make no write calls at all.
+* `appstore-snapshots upload --dry-run` plans a run without making a single
+  write call. Worth doing before the first real upload.
 * Uploading **replaces** a set's contents by default. Check the plan first.
