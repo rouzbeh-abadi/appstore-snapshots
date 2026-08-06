@@ -12,8 +12,8 @@ from typing import Any
 
 import requests
 
+from ..errors import ApiError, UploadError
 from .auth import Credentials, TokenProvider
-from .errors import ApiError, UploadError
 
 BASE_URL = "https://api.appstoreconnect.apple.com"
 

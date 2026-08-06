@@ -1,12 +1,29 @@
-"""Upload App Store screenshots laid out as ``<device>/<language>/*.png``."""
+"""Upload App Store screenshots laid out as ``<device>/<language>/*.png``.
+
+The package is split by role:
+
+* :mod:`~appstore_snapshots.naming` — folder names to App Store Connect values
+* :mod:`~appstore_snapshots.scanning` — folders to :class:`ScreenshotSet` objects
+* :mod:`~appstore_snapshots.connect` — credentials, the REST client, uploading
+* :mod:`~appstore_snapshots.ui` — the Streamlit page
+
+:mod:`~appstore_snapshots.errors` and :mod:`~appstore_snapshots.models` stay at the
+top because every one of those imports them.
+"""
 
 from __future__ import annotations
 
-from . import env
-from .auth import Credentials, TokenProvider
-from .client import App, AppStoreConnectClient, AppStoreVersion
-from .config import SnapshotConfig
-from .display_types import DISPLAY_TYPE_LABELS, DISPLAY_TYPES, resolve_display_type
+from . import connect, naming, scanning
+from .connect import (
+    App,
+    AppStoreConnectClient,
+    AppStoreVersion,
+    Credentials,
+    SnapshotUploader,
+    TokenProvider,
+    UploadOptions,
+    env,
+)
 from .errors import (
     ApiError,
     CredentialsError,
@@ -16,10 +33,22 @@ from .errors import (
     UnknownLocaleError,
     UploadError,
 )
-from .locales import APP_STORE_LOCALES, resolve_locale
 from .models import ProgressEvent, ScanResult, Screenshot, ScreenshotSet, UploadReport
-from .scanner import DEFAULT_LOCALE, device_display_type, scan, scan_device, scan_devices
-from .uploader import SnapshotUploader, UploadOptions
+from .naming import (
+    APP_STORE_LOCALES,
+    DISPLAY_TYPE_LABELS,
+    DISPLAY_TYPES,
+    resolve_display_type,
+    resolve_locale,
+)
+from .scanning import (
+    DEFAULT_LOCALE,
+    SnapshotConfig,
+    device_display_type,
+    scan,
+    scan_device,
+    scan_devices,
+)
 
 __version__ = "0.1.0"
 
@@ -49,11 +78,14 @@ __all__ = [
     "UploadOptions",
     "UploadReport",
     "__version__",
+    "connect",
     "device_display_type",
     "env",
+    "naming",
     "resolve_display_type",
     "resolve_locale",
     "scan",
     "scan_device",
     "scan_devices",
+    "scanning",
 ]

@@ -11,15 +11,11 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from . import env
-from .auth import Credentials
-from .client import AppStoreConnectClient
-from .config import SnapshotConfig
-from .display_types import DISPLAY_TYPE_LABELS
+from .connect import AppStoreConnectClient, Credentials, SnapshotUploader, UploadOptions, env
 from .errors import SnapshotError
 from .models import ProgressEvent, ScanResult
-from .scanner import DEFAULT_LOCALE, scan, scan_devices
-from .uploader import SnapshotUploader, UploadOptions
+from .naming import DISPLAY_TYPE_LABELS
+from .scanning import DEFAULT_LOCALE, SnapshotConfig, scan, scan_devices
 
 app = typer.Typer(
     add_completion=False,

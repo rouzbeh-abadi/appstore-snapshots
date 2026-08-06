@@ -12,7 +12,7 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 
-from .errors import UnknownLocaleError
+from ..errors import UnknownLocaleError
 
 #: Every locale App Store Connect accepts for app metadata, in canonical spelling.
 APP_STORE_LOCALES: tuple[str, ...] = (

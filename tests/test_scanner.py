@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from appstore_snapshots.errors import ScanError
-from appstore_snapshots.scanner import detect_layout, scan
+from appstore_snapshots.scanning.scanner import detect_layout, scan
 
 from .conftest import LANGUAGES, write_png
 

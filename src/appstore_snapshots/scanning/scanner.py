@@ -24,10 +24,14 @@ import re
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
-from .display_types import display_type_from_resolution, looks_like_device, resolve_display_type
-from .errors import ScanError, UnknownDeviceError, UnknownLocaleError
-from .locales import looks_like_locale, resolve_locale
-from .models import ScanIssue, ScanResult, Screenshot, ScreenshotSet
+from ..errors import ScanError, UnknownDeviceError, UnknownLocaleError
+from ..models import ScanIssue, ScanResult, Screenshot, ScreenshotSet
+from ..naming.display_types import (
+    display_type_from_resolution,
+    looks_like_device,
+    resolve_display_type,
+)
+from ..naming.locales import looks_like_locale, resolve_locale
 
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg"}
 

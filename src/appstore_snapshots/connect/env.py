@@ -14,7 +14,7 @@ from pathlib import Path
 
 from dotenv import find_dotenv, load_dotenv
 
-from .errors import CredentialsError
+from ..errors import CredentialsError
 
 #: Every setting the .env file may carry.
 KEY_ID = "ASC_KEY_ID"
@@ -23,7 +23,7 @@ KEY_PATH = "ASC_KEY_PATH"
 BUNDLE_ID = "ASC_BUNDLE_ID"
 
 #: Fallback location, so the installed CLI finds the project's .env from anywhere.
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 _loaded_from: Path | None = None
 

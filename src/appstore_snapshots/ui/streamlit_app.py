@@ -13,16 +13,18 @@ from pathlib import Path
 
 import streamlit as st
 
-from appstore_snapshots import env
-from appstore_snapshots.auth import Credentials
-from appstore_snapshots.client import AppStoreConnectClient
-from appstore_snapshots.config import SnapshotConfig
+from appstore_snapshots.connect import (
+    AppStoreConnectClient,
+    Credentials,
+    SnapshotUploader,
+    UploadOptions,
+    env,
+)
 from appstore_snapshots.errors import SnapshotError
-from appstore_snapshots.locales import APP_STORE_LOCALES
 from appstore_snapshots.models import ProgressEvent, ScanResult
-from appstore_snapshots.scanner import DEFAULT_LOCALE, scan_devices
+from appstore_snapshots.naming import APP_STORE_LOCALES
+from appstore_snapshots.scanning import DEFAULT_LOCALE, SnapshotConfig, scan_devices
 from appstore_snapshots.ui.folder_picker import folder_input
-from appstore_snapshots.uploader import SnapshotUploader, UploadOptions
 
 #: Always on the page.
 BASE_SLOTS = (

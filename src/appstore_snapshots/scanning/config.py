@@ -22,9 +22,9 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .display_types import DISPLAY_TYPES
-from .errors import SnapshotError
-from .locales import APP_STORE_LOCALES
+from ..errors import SnapshotError
+from ..naming.display_types import DISPLAY_TYPES
+from ..naming.locales import APP_STORE_LOCALES
 
 DEFAULT_CONFIG_NAMES = ("snapshots.json", "snapshots.toml", ".snapshots.json")
 

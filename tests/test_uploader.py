@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from appstore_snapshots.scanner import scan
-from appstore_snapshots.uploader import SnapshotUploader, UploadOptions
+from appstore_snapshots.connect.uploader import SnapshotUploader, UploadOptions
+from appstore_snapshots.scanning.scanner import scan
 
 
 class FakeClient:

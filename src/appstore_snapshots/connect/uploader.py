@@ -7,9 +7,9 @@ from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
+from ..errors import SnapshotError
+from ..models import ProgressEvent, ScreenshotSet, UploadReport
 from .client import AppStoreConnectClient
-from .errors import SnapshotError
-from .models import ProgressEvent, ScreenshotSet, UploadReport
 
 ProgressCallback = Callable[[ProgressEvent], None]
 

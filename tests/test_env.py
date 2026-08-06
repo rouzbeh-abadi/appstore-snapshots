@@ -2,7 +2,7 @@
 
 import pytest
 
-from appstore_snapshots import env
+from appstore_snapshots.connect import env
 from appstore_snapshots.errors import CredentialsError
 
 

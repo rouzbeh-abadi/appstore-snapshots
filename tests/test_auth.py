@@ -3,7 +3,12 @@ import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
-from appstore_snapshots.auth import AUDIENCE, Credentials, TokenProvider, key_id_from_filename
+from appstore_snapshots.connect.auth import (
+    AUDIENCE,
+    Credentials,
+    TokenProvider,
+    key_id_from_filename,
+)
 from appstore_snapshots.errors import CredentialsError
 
 

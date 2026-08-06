@@ -18,7 +18,7 @@ from pathlib import Path
 
 import jwt
 
-from .errors import CredentialsError
+from ..errors import CredentialsError
 
 AUDIENCE = "appstoreconnect-v1"
 #: Apple rejects tokens valid for more than 20 minutes.

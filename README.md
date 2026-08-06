@@ -224,21 +224,36 @@ recognises two inverted arrangements:
 
 ```
 src/appstore_snapshots/
-  auth.py            ES256 JWT from the .p8 + Key ID + Issuer ID
-  client.py          App Store Connect REST client (apps, versions, screenshots)
-  config.py          snapshots.json overrides
-  display_types.py   folder name  -> screenshotDisplayType
-  locales.py         folder name  -> App Store locale
-  scanner.py         device folders -> ScreenshotSet objects
-  uploader.py        reserve -> upload -> commit -> reorder, with progress events
-  env.py             .env loading (Key ID, Issuer ID)
-  cli.py             typer CLI
-  ui/streamlit_app.py  the Streamlit page
-streamlit_app.py     root launcher for `streamlit run`
+  errors.py            every exception the package raises
+  models.py            Screenshot, ScreenshotSet, ScanResult, ProgressEvent…
+  cli.py               typer CLI
+
+  naming/              folder name -> App Store Connect value
+    display_types.py     …-> screenshotDisplayType
+    locales.py           …-> App Store locale
+
+  scanning/            folders -> ScreenshotSet objects
+    scanner.py           scan_device / scan_devices / scan
+    config.py            snapshots.json folder-name overrides
+
+  connect/             everything that talks to App Store Connect
+    auth.py              ES256 JWT from the .p8 + Key ID + Issuer ID
+    env.py               .env loading
+    client.py            REST client (apps, versions, screenshots)
+    uploader.py          reserve -> upload -> commit -> reorder
+
+  ui/
+    streamlit_app.py     the page
+    folder_picker.py     folder input + Finder dialog
+
+streamlit_app.py       root launcher for `streamlit run`
 .streamlit/config.toml
-.env.example         copy to .env and fill in
-.python-version      3.13, used by `uv sync`
+.env.example           copy to .env and fill in
+.python-version        3.13, used by `uv sync`
 ```
+
+`errors` and `models` stay at the top level because all three sub-packages import
+them; nothing else is shared sideways.
 
 Uploading one image is a four-step handshake: reserve an `appScreenshot` record
 to get pre-signed upload operations, PUT the bytes to each operation, commit with

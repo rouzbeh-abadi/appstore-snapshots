@@ -15,7 +15,7 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 
-from .errors import UnknownDeviceError
+from ..errors import UnknownDeviceError
 
 #: Every ``screenshotDisplayType`` value App Store Connect accepts.
 DISPLAY_TYPES: tuple[str, ...] = (

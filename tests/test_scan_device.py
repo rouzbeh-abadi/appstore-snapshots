@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from appstore_snapshots.errors import ScanError
-from appstore_snapshots.scanner import DEFAULT_LOCALE, scan_device, scan_devices
+from appstore_snapshots.scanning.scanner import DEFAULT_LOCALE, scan_device, scan_devices
 
 from .conftest import write_png
 
