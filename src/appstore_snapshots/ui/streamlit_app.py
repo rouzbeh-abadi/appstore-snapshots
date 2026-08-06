@@ -137,35 +137,50 @@ def _scan(folders: list[Path], default_locale: str) -> ScanResult | None:
 # ----------------------------------------------------------- app store config
 
 
+def _found(label: str, ok: bool, fix: str) -> str:
+    """One line of the checklist. Names what was found, never its value."""
+    return f"✅ {label}" if ok else f"❌ {label} ({fix})"
+
+
 def _app_store_config() -> tuple[Credentials | None, str]:
     st.subheader("App Store Connect")
+    # Rendered last but placed first, so the .p8 line can reflect an upload made
+    # by the widget below it.
+    checklist = st.empty()
 
-    try:
-        key_id, issuer_id = env.require_key_and_issuer()
-    except SnapshotError as exc:
-        st.error(str(exc))
-        return None, ""
-
+    key_id = env.get(env.KEY_ID)
+    issuer_id = env.get(env.ISSUER_ID)
     key_path = env.get(env.KEY_PATH)
-    # Name what was found, never the values — this page gets screen-shared.
-    st.caption(
-        "Key ID, Issuer ID and `.p8` file found in `.env`"
-        if key_path
-        else "Key ID and Issuer ID found in `.env`",
-        help=str(env.source()),
+
+    uploaded = None
+    if not key_path:
+        # No ASC_KEY_PATH in .env, so take the key through the browser instead.
+        uploaded = st.file_uploader("Private key (.p8)", type=["p8"])
+
+    checklist.markdown(
+        "  \n".join(
+            (
+                _found("Key ID", bool(key_id), "set `ASC_KEY_ID` in .env"),
+                _found("Issuer ID", bool(issuer_id), "set `ASC_ISSUER_ID` in .env"),
+                _found(
+                    ".p8 file",
+                    bool(key_path) or uploaded is not None,
+                    "set `ASC_KEY_PATH` in .env, or upload it below",
+                ),
+            )
+        ),
+        help=f"Read from {env.source()}" if env.source() else "No .env file found",
     )
 
     credentials = None
-    try:
-        if key_path:
-            credentials = Credentials.from_p8_file(key_path, key_id, issuer_id)
-        else:
-            # No ASC_KEY_PATH in .env — take the key through the browser instead.
-            uploaded = st.file_uploader("Private key (.p8)", type=["p8"])
-            if uploaded is not None:
+    if key_id and issuer_id:
+        try:
+            if key_path:
+                credentials = Credentials.from_p8_file(key_path, key_id, issuer_id)
+            elif uploaded is not None:
                 credentials = Credentials.from_p8_bytes(uploaded.getvalue(), key_id, issuer_id)
-    except SnapshotError as exc:
-        st.error(str(exc))
+        except SnapshotError as exc:
+            st.error(str(exc))
 
     bundle_id = st.text_input(
         "App bundle ID",
@@ -187,7 +202,15 @@ def _missing(
     if not result or not result.sets:
         problems.append("Choose a device folder that has screenshots in it.")
     if not credentials:
-        problems.append("Add the .p8 private key — set `ASC_KEY_PATH` in .env or upload it above.")
+        try:
+            # A missing Key ID or Issuer ID also leaves credentials unbuilt, and
+            # "add the .p8" would be the wrong thing to tell you in that case.
+            env.require_key_and_issuer()
+            problems.append(
+                "Add the .p8 private key: set `ASC_KEY_PATH` in .env, or upload it above."
+            )
+        except SnapshotError as exc:
+            problems.append(str(exc))
     if not bundle_id:
         problems.append("Fill in the app bundle ID.")
     return problems

@@ -64,9 +64,10 @@ def require_key_and_issuer() -> tuple[str, str]:
     missing = [name for name, value in ((KEY_ID, key_id), (ISSUER_ID, issuer_id)) if not value]
     if missing:
         where = source() or Path.cwd() / ".env"
+        it_or_them = "them" if len(missing) > 1 else "it"
         raise CredentialsError(
-            f"{' and '.join(missing)} not set. Add them to {where} — "
-            "copy .env.example and fill in the two codes from App Store Connect "
-            "→ Users and Access → Integrations → Keys."
+            f"{' and '.join(missing)} not set. Add {it_or_them} to {where}. "
+            "Copy .env.example and fill in the codes from App Store Connect, "
+            "under Users and Access, Integrations, Keys."
         )
     return key_id, issuer_id

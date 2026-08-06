@@ -91,3 +91,16 @@ def test_project_root_is_the_fallback_when_cwd_has_no_dotenv(tmp_path, monkeypat
 
     assert env.load() == root / ".env"
     assert env.require_key_and_issuer()[0] == "FROM-ROOT"
+
+
+def test_error_grammar_matches_how_many_are_missing(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    write_env(tmp_path, "ASC_KEY_ID=ABCD123456\n")  # only the issuer is missing
+    env.load(override=True)
+    with pytest.raises(CredentialsError, match=r"ASC_ISSUER_ID not set\. Add it to"):
+        env.require_key_and_issuer()
+
+    monkeypatch.delenv(env.KEY_ID, raising=False)
+    with pytest.raises(CredentialsError, match=r"and ASC_ISSUER_ID not set\. Add them to"):
+        env.require_key_and_issuer()
