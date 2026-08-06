@@ -55,7 +55,11 @@ def main() -> None:
 
 def _pick_folders() -> tuple[list[Path], str, dict]:
     st.subheader("Screenshots")
-    st.caption("One folder per device — language sub-folders if any, otherwise **en-US**.")
+    st.caption(
+        "Pick one folder per device size. Language sub-folders such as `de-DE` or "
+        "`fr-FR` each become their own set, and any screenshots sitting loose in the "
+        "folder are uploaded as **en-US**."
+    )
 
     checkboxes = st.columns(len(OPTIONAL_SLOTS) + 1)
     wanted = [
