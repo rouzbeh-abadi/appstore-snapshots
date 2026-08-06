@@ -55,29 +55,47 @@ App Store Connect → **Users and Access → Integrations → Keys**, three thin
 
 The key needs the **App Manager** role (or better) to edit version metadata.
 
-### Put the two codes in a `.env`
+---
 
-The Key ID and the Issuer ID never change, so they live in a `.env` at the project
-root instead of being retyped. Copy the example and fill in your own:
+## The `.env` file
+
+Your Key ID, Issuer ID and key path never change between runs, so they live in a
+`.env` at the project root instead of being retyped every time. A template is
+committed as [`.env.example`](.env.example) — copy it and fill in your own values:
 
 ```bash
 cp .env.example .env
 ```
 
 ```ini
+# The 10-character code shown beside the key in App Store Connect
+# (also inside the AuthKey_<KeyID>.p8 filename).
 ASC_KEY_ID=ABCD123456
+
+# The UUID above the key table — the same for every key in your team.
 ASC_ISSUER_ID=69a6de70-xxxx-xxxx-xxxx-example
 
-# Path to the .p8. Set it and the UI just uses it; leave it empty and the UI
-# asks you to upload the file instead.
+# Path to the .p8 itself. Set it and the UI just uses it; leave it empty and
+# the UI asks you to upload the file instead.
 ASC_KEY_PATH=~/private_keys/AuthKey_ABCD123456.p8
 
 # Optional: pre-fills the bundle ID field.
 ASC_BUNDLE_ID=com.example.myapp
 ```
 
-`.env` is gitignored — **never commit it**, and never commit the `.p8` either.
-Real environment variables override the file, so CI can set them directly.
+| Variable | Required | Used by |
+| --- | --- | --- |
+| `ASC_KEY_ID` | yes | UI and CLI |
+| `ASC_ISSUER_ID` | yes | UI and CLI |
+| `ASC_KEY_PATH` | no — the UI offers an upload instead | UI and CLI |
+| `ASC_BUNDLE_ID` | no — pre-fills the field | UI |
+
+`.env` is in [`.gitignore`](.gitignore) — **never commit it**, and never commit the
+`.p8` either (`*.p8` is ignored too). `.env.example` holds no secrets, so that one
+*is* committed.
+
+Real environment variables win over the file, so CI can export them directly
+without a `.env` on disk.
 
 ---
 
@@ -93,9 +111,9 @@ An ordinary Streamlit project — `streamlit_app.py` at the root, settings in
 The whole page is three things:
 
 1. **iPhone folder** and **iPad folder** — type or paste a path, or press
-   *Choose…* for the Finder dialog. Tick **⌚️ Apple Watch** or **🖥️ Mac** at the
-   top to get a folder slot for those too. Each one confirms what it found: the
-   display type, the screenshot count and the languages.
+   *Choose…* for the Finder dialog. Tick **Apple Watch** or **Mac** at the top to
+   get a folder slot for those too. Each one confirms what it found: the display
+   type, the screenshot count and the languages.
 2. **App Store Connect** — just the app bundle ID. The Key ID, Issuer ID and the
    path to the `.p8` all come from your `.env`; if `ASC_KEY_PATH` is empty the page
    offers a file upload instead. The key is held in memory, never written to disk.
