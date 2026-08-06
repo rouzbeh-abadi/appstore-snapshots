@@ -55,16 +55,26 @@ App Store Connect → **Users and Access → Integrations → Keys**, three thin
 
 The key needs the **App Manager** role (or better) to edit version metadata.
 
-Set them once in your shell if you like:
+### Put the two codes in a `.env`
+
+The Key ID and the Issuer ID never change, so they live in a `.env` at the project
+root instead of being retyped. Copy the example and fill in your own:
 
 ```bash
-export ASC_KEY_PATH=~/private_keys/AuthKey_ABCD123456.p8
-export ASC_KEY_ID=ABCD123456
-export ASC_ISSUER_ID=69a6de70-xxxx-xxxx-xxxx-example
-export ASC_BUNDLE_ID=com.example.myapp
+cp .env.example .env
 ```
 
-Both the CLI and the UI pre-fill from these.
+```ini
+ASC_KEY_ID=ABCD123456
+ASC_ISSUER_ID=69a6de70-xxxx-xxxx-xxxx-example
+
+# optional — just pre-fills the fields in the UI
+ASC_KEY_PATH=~/private_keys/AuthKey_ABCD123456.p8
+ASC_BUNDLE_ID=com.example.myapp
+```
+
+`.env` is gitignored — **never commit it**, and never commit the `.p8` either.
+Real environment variables override the file, so CI can set them directly.
 
 ---
 
@@ -80,17 +90,17 @@ An ordinary Streamlit project — `streamlit_app.py` at the root, settings in
 The whole page is three things:
 
 1. **iPhone folder** and **iPad folder** — type or paste a path, or press
-   *Choose…* for the Finder dialog. Each one confirms what it found: the display
-   type, the screenshot count and the languages.
-2. **App Store Connect** — the `.p8` file (upload it or give its path), the Key ID,
-   the Issuer ID and the app bundle ID. The key stays in memory; nothing is written
-   to disk.
+   *Choose…* for the Finder dialog. Tick **⌚️ Apple Watch** or **🖥️ Mac** at the
+   top to get a folder slot for those too. Each one confirms what it found: the
+   display type, the screenshot count and the languages.
+2. **App Store Connect** — the `.p8` file (upload it or give its path) and the app
+   bundle ID. The Key ID and Issuer ID come from your `.env`; the key itself is
+   held in memory and never written to disk.
 3. **Upload** — with a **dry run** checkbox that plans everything and changes
    nothing. It targets the newest editable version of the app by itself.
 
-*Advanced* holds the rest: the locale for screenshots with no language folder,
-extra device folders (a second iPhone size, a Mac, a Watch), replace-vs-append,
-and pinning a specific version ID.
+*Advanced* holds just two things: the locale for screenshots with no language
+folder, and replace-vs-append.
 
 ## Command line
 
@@ -200,10 +210,12 @@ src/appstore_snapshots/
   locales.py         folder name  -> App Store locale
   scanner.py         device folders -> ScreenshotSet objects
   uploader.py        reserve -> upload -> commit -> reorder, with progress events
+  env.py             .env loading (Key ID, Issuer ID)
   cli.py             typer CLI
   ui/streamlit_app.py  the Streamlit page
 streamlit_app.py     root launcher for `streamlit run`
 .streamlit/config.toml
+.env.example         copy to .env and fill in
 .python-version      3.13, used by `uv sync`
 ```
 

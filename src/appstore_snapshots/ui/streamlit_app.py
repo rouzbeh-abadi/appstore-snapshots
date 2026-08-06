@@ -8,13 +8,13 @@ Everything else has a sensible default and lives under *Advanced*. Run it with::
 
 from __future__ import annotations
 
-import os
 import threading
 from pathlib import Path
 
 import streamlit as st
 
-from appstore_snapshots.auth import Credentials, key_id_from_filename
+from appstore_snapshots import env
+from appstore_snapshots.auth import Credentials
 from appstore_snapshots.client import AppStoreConnectClient
 from appstore_snapshots.config import SnapshotConfig
 from appstore_snapshots.errors import SnapshotError
@@ -24,15 +24,22 @@ from appstore_snapshots.scanner import DEFAULT_LOCALE, scan_devices
 from appstore_snapshots.ui.folder_picker import folder_input
 from appstore_snapshots.uploader import SnapshotUploader, UploadOptions
 
-#: The two slots on the page. More can be added under Advanced.
-SLOTS = (
+#: Always on the page.
+BASE_SLOTS = (
     ("iphone", "iPhone folder", "…/screenshots/iPhone-6.9"),
     ("ipad", "iPad folder", "…/screenshots/iPad-13-Landscape"),
 )
 
+#: Ticked on at the top when you have them. Label -> slot.
+OPTIONAL_SLOTS = {
+    "⌚️ Apple Watch": ("watch", "Apple Watch folder", "…/screenshots/Apple-Watch-Ultra"),
+    "🖥️ Mac": ("mac", "Mac folder", "…/screenshots/Mac"),
+}
+
 
 def main() -> None:
     st.set_page_config(page_title="App Store Snapshots", page_icon="📱")
+    env.load()
     st.title("📱 App Store snapshots")
 
     folders, default_locale, extra = _pick_folders()
@@ -51,8 +58,15 @@ def _pick_folders() -> tuple[list[Path], str, dict]:
         "folder has language sub-folders (`de-DE`, `fr-FR`, …)."
     )
 
+    checkboxes = st.columns(len(OPTIONAL_SLOTS) + 1)
+    wanted = [
+        slot
+        for column, (label, slot) in zip(checkboxes, OPTIONAL_SLOTS.items(), strict=False)
+        if column.checkbox(label)
+    ]
+
     folders: list[Path] = []
-    for key, label, placeholder in SLOTS:
+    for key, label, placeholder in (*BASE_SLOTS, *wanted):
         folder = folder_input(label, key=key, placeholder=placeholder)
         if folder:
             folders.append(folder)
@@ -63,24 +77,12 @@ def _pick_folders() -> tuple[list[Path], str, dict]:
             APP_STORE_LOCALES,
             index=APP_STORE_LOCALES.index(DEFAULT_LOCALE),
         )
-        more = st.text_area(
-            "More device folders",
-            placeholder="One path per line — for a second iPhone size, a Mac, a Watch…",
-            height=70,
-        )
-        for line in more.splitlines():
-            if line.strip():
-                folders.append(Path(line.strip()).expanduser())
-
         extra = {
             "replace": st.toggle(
                 "Replace the screenshots already in each set",
                 value=True,
                 help="Off = append. A set holds at most 10 images, so appending overflows fast.",
-            ),
-            "version_id": st.text_input(
-                "Version ID", placeholder="Leave empty for the latest editable version"
-            ).strip(),
+            )
         }
 
     return folders, default_locale, extra
@@ -130,39 +132,31 @@ def _scan(folders: list[Path], default_locale: str) -> ScanResult | None:
 
 def _app_store_config() -> tuple[Credentials | None, str]:
     st.subheader("App Store Connect")
+
+    try:
+        key_id, issuer_id = env.require_key_and_issuer()
+    except SnapshotError as exc:
+        st.error(str(exc))
+        return None, ""
     st.caption(
-        "From **Users and Access → Integrations → Keys**: the `.p8` file, the Key ID "
-        "beside it, and the Issuer ID above the table."
+        f"Key ID `{key_id}` and Issuer ID from `{env.source()}`. "
+        "The `.p8` file itself is never stored."
     )
 
     uploaded = st.file_uploader("Private key (.p8)", type=["p8"])
     p8_path = st.text_input(
         "…or path to the .p8 on this machine",
-        value=os.environ.get("ASC_KEY_PATH", ""),
+        value=env.get(env.KEY_PATH),
         placeholder="~/private_keys/AuthKey_ABCD123456.p8",
     ).strip()
-
-    guessed = os.environ.get("ASC_KEY_ID", "")
-    if uploaded is not None:
-        guessed = key_id_from_filename(uploaded.name) or guessed
-    elif p8_path:
-        guessed = key_id_from_filename(p8_path) or guessed
-
-    left, right = st.columns(2)
-    key_id = left.text_input("Key ID", value=guessed, placeholder="ABCD123456")
-    issuer_id = right.text_input(
-        "Issuer ID",
-        value=os.environ.get("ASC_ISSUER_ID", ""),
-        placeholder="69a6de70-…",
-    )
     bundle_id = st.text_input(
         "App bundle ID",
-        value=os.environ.get("ASC_BUNDLE_ID", ""),
+        value=env.get(env.BUNDLE_ID),
         placeholder="com.example.myapp",
     ).strip()
 
     credentials = None
-    if (uploaded is not None or p8_path) and key_id and issuer_id:
+    if uploaded is not None or p8_path:
         try:
             credentials = (
                 Credentials.from_p8_bytes(uploaded.getvalue(), key_id, issuer_id)
@@ -190,7 +184,7 @@ def _upload_section(
     if not result or not result.sets:
         missing.append("a device folder with screenshots in it")
     if not credentials:
-        missing.append("the .p8 file, Key ID and Issuer ID")
+        missing.append("the .p8 file")
     if not bundle_id:
         missing.append("the app bundle ID")
     if missing:
@@ -238,22 +232,19 @@ def _run_upload(
             raise SnapshotError(f"No app with bundle ID {bundle_id!r} is visible to this API key.")
         log.write(f"📱 {app.name}")
 
-        version_id = extra["version_id"]
-        if not version_id:
-            version = client.latest_editable_version(app.id)
-            if not version:
-                raise SnapshotError(
-                    "This app has no App Store version whose metadata can be edited. "
-                    "Create the next version in App Store Connect first."
-                )
-            log.write(f"🏷️ Version {version.version_string} ({version.state})")
-            version_id = version.id
+        version = client.latest_editable_version(app.id)
+        if not version:
+            raise SnapshotError(
+                "This app has no App Store version whose metadata can be edited. "
+                "Create the next version in App Store Connect first."
+            )
+        log.write(f"🏷️ Version {version.version_string} ({version.state})")
 
         report = SnapshotUploader(
             client,
             UploadOptions(replace_existing=extra["replace"], dry_run=dry_run),
             on_progress=on_progress,
-        ).upload(version_id, result.sets)
+        ).upload(version.id, result.sets)
     except Exception as exc:
         progress.empty()
         st.error(str(exc))
