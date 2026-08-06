@@ -10,6 +10,9 @@ build/
 .coverage
 htmlcov/
 
+# macOS
+.DS_Store
+
 # never commit App Store Connect credentials
 *.p8
 AuthKey_*.p8

@@ -11,6 +11,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from . import env
 from .auth import Credentials
 from .client import AppStoreConnectClient
 from .config import SnapshotConfig
@@ -331,6 +332,7 @@ def ui_command(
 
 
 def main() -> None:
+    env.load()
     try:
         app()
     except SnapshotError as exc:

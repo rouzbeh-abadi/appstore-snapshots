@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from . import env
 from .auth import Credentials, TokenProvider
 from .client import App, AppStoreConnectClient, AppStoreVersion
 from .config import SnapshotConfig
@@ -49,6 +50,7 @@ __all__ = [
     "UploadReport",
     "__version__",
     "device_display_type",
+    "env",
     "resolve_display_type",
     "resolve_locale",
     "scan",
