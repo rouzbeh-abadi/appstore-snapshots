@@ -147,10 +147,11 @@ def _app_store_config() -> tuple[Credentials | None, str]:
         return None, ""
 
     key_path = env.get(env.KEY_PATH)
+    # Name what was found, never the values — this page gets screen-shared.
     st.caption(
-        f"Key ID `{key_id}`, Issuer ID"
-        + (f" and `{Path(key_path).name}`" if key_path else "")
-        + " from `.env`",
+        "Key ID, Issuer ID and `.p8` file found in `.env`"
+        if key_path
+        else "Key ID and Issuer ID found in `.env`",
         help=str(env.source()),
     )
 
