@@ -32,15 +32,15 @@ BASE_SLOTS = (
 
 #: Ticked on at the top when you have them. Label -> slot.
 OPTIONAL_SLOTS = {
-    "⌚️ Apple Watch": ("watch", "Apple Watch folder", "…/screenshots/Apple-Watch-Ultra"),
-    "🖥️ Mac": ("mac", "Mac folder", "…/screenshots/Mac"),
+    "Apple Watch": ("watch", "Apple Watch folder", "…/screenshots/Apple-Watch-Ultra"),
+    "Mac": ("mac", "Mac folder", "…/screenshots/Mac"),
 }
 
 
 def main() -> None:
     st.set_page_config(page_title="App Store Snapshots", page_icon="📱")
     env.load()
-    st.title("📱 App Store snapshots")
+    st.title("App Store snapshots")
 
     folders, default_locale, extra = _pick_folders()
     result = _scan(folders, default_locale)
@@ -53,10 +53,7 @@ def main() -> None:
 
 def _pick_folders() -> tuple[list[Path], str, dict]:
     st.subheader("Screenshots")
-    st.caption(
-        "One folder per device. Screenshots inside are used as **en-US** unless the "
-        "folder has language sub-folders (`de-DE`, `fr-FR`, …)."
-    )
+    st.caption("One folder per device — language sub-folders if any, otherwise **en-US**.")
 
     checkboxes = st.columns(len(OPTIONAL_SLOTS) + 1)
     wanted = [
@@ -138,33 +135,32 @@ def _app_store_config() -> tuple[Credentials | None, str]:
     except SnapshotError as exc:
         st.error(str(exc))
         return None, ""
+
+    key_path = env.get(env.KEY_PATH)
     st.caption(
-        f"Key ID `{key_id}` and Issuer ID from `{env.source()}`. "
-        "The `.p8` file itself is never stored."
+        f"Key ID `{key_id}`, Issuer ID"
+        + (f" and `{Path(key_path).name}`" if key_path else "")
+        + " from `.env`",
+        help=str(env.source()),
     )
 
-    uploaded = st.file_uploader("Private key (.p8)", type=["p8"])
-    p8_path = st.text_input(
-        "…or path to the .p8 on this machine",
-        value=env.get(env.KEY_PATH),
-        placeholder="~/private_keys/AuthKey_ABCD123456.p8",
-    ).strip()
+    credentials = None
+    try:
+        if key_path:
+            credentials = Credentials.from_p8_file(key_path, key_id, issuer_id)
+        else:
+            # No ASC_KEY_PATH in .env — take the key through the browser instead.
+            uploaded = st.file_uploader("Private key (.p8)", type=["p8"])
+            if uploaded is not None:
+                credentials = Credentials.from_p8_bytes(uploaded.getvalue(), key_id, issuer_id)
+    except SnapshotError as exc:
+        st.error(str(exc))
+
     bundle_id = st.text_input(
         "App bundle ID",
         value=env.get(env.BUNDLE_ID),
         placeholder="com.example.myapp",
     ).strip()
-
-    credentials = None
-    if uploaded is not None or p8_path:
-        try:
-            credentials = (
-                Credentials.from_p8_bytes(uploaded.getvalue(), key_id, issuer_id)
-                if uploaded is not None
-                else Credentials.from_p8_file(p8_path, key_id, issuer_id)
-            )
-        except SnapshotError as exc:
-            st.error(str(exc))
 
     return credentials, bundle_id
 

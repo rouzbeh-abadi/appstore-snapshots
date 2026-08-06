@@ -68,8 +68,11 @@ cp .env.example .env
 ASC_KEY_ID=ABCD123456
 ASC_ISSUER_ID=69a6de70-xxxx-xxxx-xxxx-example
 
-# optional — just pre-fills the fields in the UI
+# Path to the .p8. Set it and the UI just uses it; leave it empty and the UI
+# asks you to upload the file instead.
 ASC_KEY_PATH=~/private_keys/AuthKey_ABCD123456.p8
+
+# Optional: pre-fills the bundle ID field.
 ASC_BUNDLE_ID=com.example.myapp
 ```
 
@@ -93,9 +96,9 @@ The whole page is three things:
    *Choose…* for the Finder dialog. Tick **⌚️ Apple Watch** or **🖥️ Mac** at the
    top to get a folder slot for those too. Each one confirms what it found: the
    display type, the screenshot count and the languages.
-2. **App Store Connect** — the `.p8` file (upload it or give its path) and the app
-   bundle ID. The Key ID and Issuer ID come from your `.env`; the key itself is
-   held in memory and never written to disk.
+2. **App Store Connect** — just the app bundle ID. The Key ID, Issuer ID and the
+   path to the `.p8` all come from your `.env`; if `ASC_KEY_PATH` is empty the page
+   offers a file upload instead. The key is held in memory, never written to disk.
 3. **Upload** — with a **dry run** checkbox that plans everything and changes
    nothing. It targets the newest editable version of the app by itself.
 
