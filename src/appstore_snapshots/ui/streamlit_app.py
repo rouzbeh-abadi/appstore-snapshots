@@ -201,12 +201,9 @@ def _upload_section(
 ) -> None:
     st.divider()
 
-    dry_run = st.checkbox("Dry run — plan it, change nothing", key="dry_run")
     total = result.total_screenshots if result else 0
     uploading = st.session_state.get("uploading", False)
-
-    verb = "Simulate" if dry_run else "Upload"
-    label = f"{verb} {total} screenshot(s)" if total else verb
+    label = f"Upload {total} screenshot(s)" if total else "Upload"
     # The button stays enabled so pressing it explains what is missing, rather
     # than a permanent "still needed" notice sitting under an empty form.
     clicked = st.button(
@@ -229,7 +226,7 @@ def _upload_section(
 
     if uploading:
         try:
-            outcome = _run_upload(result, credentials, bundle_id, extra, dry_run)  # type: ignore[arg-type]
+            outcome = _run_upload(result, credentials, bundle_id, extra)  # type: ignore[arg-type]
         except Exception as exc:  # never leave the button stuck on "Uploading…"
             outcome = {"error": str(exc), "lines": []}
         finally:
@@ -269,7 +266,6 @@ def _run_upload(
     credentials: Credentials,
     bundle_id: str,
     extra: dict,
-    dry_run: bool,
 ) -> dict:
     """Do the upload, streaming progress live, and return what to show afterwards."""
     progress = st.progress(0.0, text="Connecting…")
@@ -317,7 +313,7 @@ def _run_upload(
 
         report = SnapshotUploader(
             client,
-            UploadOptions(replace_existing=extra["replace"], dry_run=dry_run),
+            UploadOptions(replace_existing=extra["replace"]),
             on_progress=on_progress,
         ).upload(version.id, result.sets)
     except Exception as exc:
@@ -328,11 +324,6 @@ def _run_upload(
     progress.progress(1.0, text="Finished")
     if report.errors:
         outcome["errors"] = list(report.errors)
-    elif dry_run:
-        outcome["success"] = (
-            f"Dry run OK — {report.uploaded} screenshot(s) would be uploaded, "
-            f"{report.deleted} existing one(s) removed first. Nothing was changed."
-        )
     else:
         outcome["success"] = (
             f"Uploaded {report.uploaded} screenshot(s) and removed {report.deleted} old one(s) "
