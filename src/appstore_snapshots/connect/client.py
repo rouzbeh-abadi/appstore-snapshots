@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
+import re
 import time
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
@@ -31,7 +32,17 @@ EDITABLE_VERSION_STATES = frozenset(
     }
 )
 
+#: Of the editable states, the ones a version you are still preparing is in.
+PREFERRED_VERSION_STATES = frozenset({"PREPARE_FOR_SUBMISSION", "DEVELOPER_REJECTED", "REJECTED"})
+
 _RETRY_STATUSES = {429, 500, 502, 503, 504}
+
+_VERSION_PART = re.compile(r"\d+")
+
+
+def version_sort_key(version_string: str) -> tuple[int, ...]:
+    """Order ``1.10.0`` after ``1.9.0`` — string order would get that backwards."""
+    return tuple(int(part) for part in _VERSION_PART.findall(version_string)) or (0,)
 
 
 @dataclass(frozen=True, slots=True)
@@ -184,6 +195,11 @@ class AppStoreConnectClient:
         return None
 
     def list_versions(self, app_id: str, platform: str = "IOS") -> list[AppStoreVersion]:
+        """Every version for the platform, newest version string first.
+
+        The API gives no ordering guarantee, so sort here rather than trusting
+        the order the response happened to arrive in.
+        """
         params = {"filter[platform]": platform} if platform else None
         versions = []
         for item in self._paged(f"/v1/apps/{app_id}/appStoreVersions", params):
@@ -197,11 +213,22 @@ class AppStoreConnectClient:
                     state=attrs.get("appVersionState") or attrs.get("appStoreState") or "UNKNOWN",
                 )
             )
+        versions.sort(key=lambda v: version_sort_key(v.version_string), reverse=True)
         return versions
 
     def latest_editable_version(self, app_id: str, platform: str = "IOS") -> AppStoreVersion | None:
+        """The newest version whose screenshots can be changed.
+
+        Prefers ``PREPARE_FOR_SUBMISSION`` — the state a version you are still
+        working on is in — over the other editable states, so a version already
+        sitting in review is never picked while a draft exists.
+        """
         editable = [v for v in self.list_versions(app_id, platform) if v.editable]
-        return editable[0] if editable else None
+        if not editable:
+            return None
+        drafts = [v for v in editable if v.state in PREFERRED_VERSION_STATES]
+        # max() rather than [0], so this is right whatever order it was handed.
+        return max(drafts or editable, key=lambda v: version_sort_key(v.version_string))
 
     # ----------------------------------------------------------- localizations
 

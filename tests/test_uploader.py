@@ -166,3 +166,62 @@ def test_progress_events_are_emitted(small_tree: Path):
     assert kinds.count("set_start") == 2
     assert kinds.count("file_done") == 4
     assert events[-1].fraction == 1.0
+
+
+def test_version_ordering_picks_the_newest_editable(monkeypatch):
+    """`latest_editable_version` must sort — the API returns versions unordered."""
+    from appstore_snapshots.connect.client import AppStoreConnectClient, AppStoreVersion
+
+    unordered = [
+        AppStoreVersion("id-19", "1.9.0", "IOS", "PREPARE_FOR_SUBMISSION"),
+        AppStoreVersion("id-2", "2.0.0", "IOS", "READY_FOR_SALE"),
+        AppStoreVersion("id-110", "1.10.0", "IOS", "PREPARE_FOR_SUBMISSION"),
+    ]
+    monkeypatch.setattr(AppStoreConnectClient, "list_versions", lambda self, *a, **k: unordered)
+    client = AppStoreConnectClient.__new__(AppStoreConnectClient)
+
+    # 1.10.0 > 1.9.0 numerically, and 2.0.0 is not editable
+    assert client.latest_editable_version("app").id == "id-110"
+
+
+def test_a_draft_beats_a_version_already_in_review(monkeypatch):
+    from appstore_snapshots.connect.client import AppStoreConnectClient, AppStoreVersion
+
+    versions = [
+        AppStoreVersion("id-review", "3.0.0", "IOS", "WAITING_FOR_REVIEW"),
+        AppStoreVersion("id-draft", "2.0.0", "IOS", "PREPARE_FOR_SUBMISSION"),
+    ]
+    monkeypatch.setattr(AppStoreConnectClient, "list_versions", lambda self, *a, **k: versions)
+    client = AppStoreConnectClient.__new__(AppStoreConnectClient)
+    assert client.latest_editable_version("app").id == "id-draft"
+
+
+def test_replace_reports_what_it_removed(small_tree: Path):
+    client = FakeClient(existing_locales=("en-US", "it"))
+    client.sets["loc-en-US"] = {"APP_IPHONE_67": "set-old"}
+    client.screenshots["set-old"] = ["old-1", "old-2"]
+
+    events = []
+    report = SnapshotUploader(
+        client, UploadOptions(max_workers=1), on_progress=events.append
+    ).upload("v1", scan(small_tree).sets)
+
+    assert report.deleted == 2
+    messages = [e.message for e in events]
+    assert any("replacing 2 existing" in m for m in messages)
+    assert any("already empty" in m for m in messages)  # the Italian set had none
+
+
+def test_list_versions_sorts_newest_first(monkeypatch):
+    """The API response order is arbitrary, so list_versions must sort it."""
+    from appstore_snapshots.connect.client import AppStoreConnectClient
+
+    raw = [
+        {"id": "a", "attributes": {"versionString": "1.9.0", "appVersionState": "READY_FOR_SALE"}},
+        {"id": "b", "attributes": {"versionString": "1.10.0", "appVersionState": "READY_FOR_SALE"}},
+        {"id": "c", "attributes": {"versionString": "2.0", "appVersionState": "READY_FOR_SALE"}},
+    ]
+    monkeypatch.setattr(AppStoreConnectClient, "_paged", lambda self, *a, **k: iter(raw))
+    client = AppStoreConnectClient.__new__(AppStoreConnectClient)
+
+    assert [v.version_string for v in client.list_versions("app")] == ["2.0", "1.10.0", "1.9.0"]

@@ -198,6 +198,7 @@ class SnapshotUploader:
     def _clear_set(self, set_id: str) -> int:
         existing = self._client.list_screenshots(set_id)
         if not existing:
+            self._emit(ProgressEvent("info", "nothing to replace — the set was already empty"))
             return 0
         if self._options.dry_run:
             self._emit(
@@ -206,6 +207,7 @@ class SnapshotUploader:
                 )
             )
             return len(existing)
+        self._emit(ProgressEvent("info", f"replacing {len(existing)} existing screenshot(s)"))
         for item in existing:
             self._client.delete_screenshot(item["id"])
         return len(existing)
