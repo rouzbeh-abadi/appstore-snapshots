@@ -5,6 +5,10 @@ The Key ID and the Issuer ID never change between runs, so they live in a
 ``.env`` is gitignored; ``.env.example`` shows the shape.
 
 Real environment variables win over the file, so CI can set them directly.
+
+The file is read into a dict rather than pushed into ``os.environ``: a long-lived
+Streamlit process re-reads it on every run, and a value already copied into the
+environment could never be *removed* by editing the file.
 """
 
 from __future__ import annotations
@@ -12,7 +16,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from dotenv import find_dotenv, load_dotenv
+from dotenv import dotenv_values, find_dotenv
 
 from ..errors import CredentialsError
 
@@ -25,18 +29,22 @@ BUNDLE_ID = "ASC_BUNDLE_ID"
 #: Fallback location, so the installed CLI finds the project's .env from anywhere.
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
+_file_values: dict[str, str] = {}
 _loaded_from: Path | None = None
 
 
-def load(override: bool = False) -> Path | None:
-    """Load the nearest ``.env`` and return where it came from, if anywhere.
+def load() -> Path | None:
+    """(Re-)read the nearest ``.env`` and return where it came from, if anywhere.
 
     Searches upward from the working directory, then falls back to the project
     root inferred from this file's location, so it works whether you run
     ``streamlit run streamlit_app.py`` from the repo or the installed CLI from
     somewhere else.
+
+    Safe to call on every run: the file is re-read each time, so deleting a line
+    from ``.env`` takes effect on the next page refresh.
     """
-    global _loaded_from
+    global _file_values, _loaded_from
 
     found = find_dotenv(usecwd=True)
     if not found:
@@ -44,8 +52,11 @@ def load(override: bool = False) -> Path | None:
         found = str(candidate) if candidate.is_file() else ""
 
     if found:
-        load_dotenv(found, override=override)
+        _file_values = {k: v for k, v in dotenv_values(found).items() if v is not None}
         _loaded_from = Path(found)
+    else:
+        _file_values = {}
+        _loaded_from = None
     return _loaded_from
 
 
@@ -55,7 +66,9 @@ def source() -> Path | None:
 
 
 def get(name: str, default: str = "") -> str:
-    return os.environ.get(name, default).strip()
+    """A setting from the real environment, else the ``.env``, else ``default``."""
+    value = os.environ.get(name) or _file_values.get(name) or default
+    return value.strip()
 
 
 def require_key_and_issuer() -> tuple[str, str]:

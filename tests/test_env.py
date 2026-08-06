@@ -11,6 +11,7 @@ def clean_environment(monkeypatch, tmp_path):
     for name in (env.KEY_ID, env.ISSUER_ID, env.KEY_PATH, env.BUNDLE_ID):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setattr(env, "_loaded_from", None)
+    monkeypatch.setattr(env, "_file_values", {})
     # Point the "installed CLI run from elsewhere" fallback at an empty directory,
     # so a developer's own .env at the real project root cannot leak into a test.
     monkeypatch.setattr(env, "PROJECT_ROOT", tmp_path / "nowhere")
@@ -97,10 +98,40 @@ def test_error_grammar_matches_how_many_are_missing(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 
     write_env(tmp_path, "ASC_KEY_ID=ABCD123456\n")  # only the issuer is missing
-    env.load(override=True)
+    env.load()
     with pytest.raises(CredentialsError, match=r"ASC_ISSUER_ID not set\. Add it to"):
         env.require_key_and_issuer()
 
-    monkeypatch.delenv(env.KEY_ID, raising=False)
+    write_env(tmp_path, "# nothing set at all\n")
+    env.load()
     with pytest.raises(CredentialsError, match=r"and ASC_ISSUER_ID not set\. Add them to"):
         env.require_key_and_issuer()
+
+
+def test_deleting_a_line_from_dotenv_takes_effect_on_reload(tmp_path, monkeypatch):
+    """The bug this guards: a value copied into os.environ could never be removed."""
+    monkeypatch.chdir(tmp_path)
+
+    write_env(tmp_path, "ASC_KEY_ID=ABCD123456\nASC_ISSUER_ID=69a6de70-uuid\n")
+    env.load()
+    assert env.require_key_and_issuer() == ("ABCD123456", "69a6de70-uuid")
+
+    # The user edits .env and refreshes the page; the process is still running.
+    write_env(tmp_path, "ASC_KEY_ID=ABCD123456\n")
+    env.load()
+
+    assert env.get(env.ISSUER_ID) == ""
+    with pytest.raises(CredentialsError, match="ASC_ISSUER_ID"):
+        env.require_key_and_issuer()
+
+
+def test_deleting_the_whole_dotenv_clears_everything(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    dotenv = write_env(tmp_path, "ASC_KEY_ID=ABCD123456\nASC_BUNDLE_ID=com.example.app\n")
+    env.load()
+    assert env.get(env.BUNDLE_ID) == "com.example.app"
+
+    dotenv.unlink()
+    env.load()
+    assert env.get(env.BUNDLE_ID) == ""
+    assert env.source() is None

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 from typing import Annotated
@@ -82,13 +81,14 @@ def _scan(
 
 
 def _credentials(key: Path | None, key_id: str | None, issuer_id: str | None) -> Credentials:
-    key_path = key or (Path(os.environ["ASC_KEY_PATH"]) if os.environ.get("ASC_KEY_PATH") else None)
+    """Flags win, then the environment, then .env — via env.get(), not os.environ."""
+    key_path = key or (Path(env.get(env.KEY_PATH)) if env.get(env.KEY_PATH) else None)
     if not key_path:
         raise SnapshotError("Pass --key /path/to/AuthKey_XXXX.p8 (or set ASC_KEY_PATH).")
     return Credentials.from_p8_file(
         key_path,
-        key_id=key_id or os.environ.get("ASC_KEY_ID"),
-        issuer_id=issuer_id or os.environ.get("ASC_ISSUER_ID", ""),
+        key_id=key_id or env.get(env.KEY_ID) or None,
+        issuer_id=issuer_id or env.get(env.ISSUER_ID),
     )
 
 
