@@ -2,281 +2,109 @@
 
 [![CI](https://github.com/rouzbeh-abadi/appstore-snapshots/actions/workflows/ci.yml/badge.svg)](https://github.com/rouzbeh-abadi/appstore-snapshots/actions/workflows/ci.yml)
 
-Upload App Store screenshots straight from your folders to App Store Connect —
-no Fastlane, no Ruby.
+Upload App Store screenshots from your folders to App Store Connect. No Fastlane,
+no Ruby.
 
-The unit of work is a **device folder**: one folder holding the screenshots for
-one device size. You point at an iPhone folder and an iPad folder, and each one
-is read the way it happens to be arranged:
+You give it one folder per device size, and each is read the way you happen to
+keep it:
 
 ```
-iPhone-6.9/                       <- pick this folder
-  de-DE/   01_home.png  02_detail.png  03_settings.png
-  en-US/   01_home.png  02_detail.png  03_settings.png
-  es-ES/   …   es-MX/  …   fr-FR/  …
-  it-IT/   …   pt-BR/  …   pt-PT/  …   zh-Hans/  …
-
-iPad-13-Landscape/                <- and this one
-  01.png                          <- no language folders here, so these
-  02.png                             are taken as en-US
+iPhone-6.9/                 iPad-13-Landscape/
+  de-DE/                      01.png       <- no language folders here,
+    01.png  02.png            02.png          so these go up as en-US
+  en-US/
+    01.png  02.png
 ```
 
-* **Language sub-folders present** → one screenshot set per language.
-* **Screenshots sitting directly in the folder** → one set in the default locale
-  (`en-US`, changeable).
-* **Both** → the language folders win for their own locales, the loose files fill
-  the default one.
+It works out the App Store display type and locale for each folder, creates the
+sets, uploads the images and puts them in order.
 
-From there it works out which App Store *screenshot display type* and *locale*
-each folder means, creates the sets, uploads the images and puts them in order.
-
-There is a command line interface and a Streamlit app.
-
----
-
-## Install
-
-Everything is managed by [uv](https://docs.astral.sh/uv/); the Python version is
-pinned in `.python-version`, so this one command fetches Python 3.13, creates the
-venv and installs every dependency:
+## Quick start
 
 ```bash
-cd appstore-snapshots
-uv sync
-```
-
-## What you need from Apple
-
-App Store Connect → **Users and Access → Integrations → Keys**, three things:
-
-| Thing | Where | Notes |
-| --- | --- | --- |
-| **`.p8` private key** | “Download” next to the key | Downloadable **once**. Keep it out of git. |
-| **Key ID** | The code in the key's row | Also inside the filename `AuthKey_<KeyID>.p8`, so the tool can usually infer it. |
-| **Issuer ID** | The UUID above the key table | Same for every key in your team — this is the "other code". |
-
-The key needs the **App Manager** role (or better) to edit version metadata.
-
----
-
-## The `.env` file
-
-Your Key ID, Issuer ID and key path never change between runs, so they live in a
-`.env` at the project root instead of being retyped every time. A template is
-committed as [`.env.example`](.env.example) — copy it and fill in your own values:
-
-```bash
-cp .env.example .env
-```
-
-```ini
-# The 10-character code shown beside the key in App Store Connect
-# (also inside the AuthKey_<KeyID>.p8 filename).
-ASC_KEY_ID=ABCD123456
-
-# The UUID above the key table — the same for every key in your team.
-ASC_ISSUER_ID=69a6de70-xxxx-xxxx-xxxx-example
-
-# Path to the .p8 itself. Set it and the UI just uses it; leave it empty and
-# the UI asks you to upload the file instead.
-ASC_KEY_PATH=~/private_keys/AuthKey_ABCD123456.p8
-
-# Optional: pre-fills the bundle ID field.
-ASC_BUNDLE_ID=com.example.myapp
-```
-
-| Variable | Required | Used by |
-| --- | --- | --- |
-| `ASC_KEY_ID` | yes | UI and CLI |
-| `ASC_ISSUER_ID` | yes | UI and CLI |
-| `ASC_KEY_PATH` | no — the UI offers an upload instead | UI and CLI |
-| `ASC_BUNDLE_ID` | no — pre-fills the field | UI |
-
-`.env` is in [`.gitignore`](.gitignore) — **never commit it**, and never commit the
-`.p8` either (`*.p8` is ignored too). `.env.example` holds no secrets, so that one
-*is* committed.
-
-Real environment variables win over the file, so CI can export them directly
-without a `.env` on disk.
-
----
-
-## Streamlit UI
-
-```bash
+uv sync                                 # fetches Python 3.13 and all dependencies
+cp .env.example .env                    # then fill it in, see below
 uv run streamlit run streamlit_app.py
 ```
 
-An ordinary Streamlit project — `streamlit_app.py` at the root, settings in
-`.streamlit/config.toml`. (`uv run appstore-snapshots ui` opens the same page.)
+## Your credentials
 
-The whole page is three things:
+From App Store Connect → **Users and Access → Integrations → Keys**. The key needs
+the **App Manager** role to edit version metadata, and the `.p8` downloads once.
 
-1. **iPhone folder** and **iPad folder** — type or paste a path, or press
-   *Choose…* for the Finder dialog. Tick **Apple Watch** or **Mac** at the top to
-   get a folder slot for those too. Each one confirms what it found: the display
-   type, the screenshot count and the languages.
-2. **App Store Connect** — just the app bundle ID. The Key ID, Issuer ID and the
-   path to the `.p8` all come from your `.env`; if `ASC_KEY_PATH` is empty the page
-   offers a file upload instead. The key is held in memory, never written to disk.
-3. **Upload** — one button. It picks the newest editable version of the app by
-   itself and names the version it wrote to when it finishes.
+Put them in `.env`:
 
-*Advanced* holds just two things: the locale for screenshots with no language
-folder, and replace-vs-append.
-
-## Command line
-
-Give it device folders with `-d` (repeatable), or a parent folder as a positional
-argument to take every sub-folder as a device.
-
-```bash
-# See how the folders will be interpreted — no network calls
-appstore-snapshots scan -d ./iPhone-6.9 -d ./iPad-13-Landscape
-
-# Same thing, via the parent folder
-appstore-snapshots scan ./screenshots
-
-# Which apps and versions can this key see?
-appstore-snapshots apps
-appstore-snapshots versions 1234567890
-
-# Plan the upload without changing anything
-appstore-snapshots upload -d ./iPhone-6.9 -b com.example.myapp --dry-run
-
-# Do it
-appstore-snapshots upload -d ./iPhone-6.9 -d ./iPad-13-Landscape -b com.example.myapp
-
-# Loose screenshots should be German rather than en-US
-appstore-snapshots upload -d ./iPad-13-Landscape -b com.example.myapp --default-locale de-DE
-
-# Narrow it down
-appstore-snapshots upload ./screenshots -b com.example.myapp \
-    --only-devices APP_IPHONE_67 --only-languages en-US,de-DE --keep-existing
-
-# Every display type, with example folder names
-appstore-snapshots devices
+```ini
+ASC_KEY_ID=ABCD123456                   # the code beside the key
+ASC_ISSUER_ID=69a6de70-xxxx-xxxx-xxxx   # the UUID above the key table
+ASC_KEY_PATH=~/private_keys/AuthKey_ABCD123456.p8
+ASC_BUNDLE_ID=com.example.myapp         # optional, pre-fills the field
 ```
 
-By default `upload` targets the newest **editable** version of the app and
-**replaces** the screenshots already in each set — App Store Connect allows at
-most 10 per set, so appending overflows fast. Use `--keep-existing` to append.
+Both `.env` and `*.p8` are gitignored. Never commit either. Real environment
+variables override the file, so CI can set them directly.
 
----
+## The app
 
-## Folder names it understands
+Choose your iPhone and iPad folders, tick **Apple Watch** or **Mac** if you have
+those, check the bundle ID and press Upload. It targets the newest editable
+version of the app and names the version it wrote to when it finishes.
 
-**Devices.** Separators, case and orientation are all ignored, so
-`iPhone-6.9`, `iphone_69`, `IPHONE 6.9 inch` and `iPhone-6.9-Portrait` are the
-same thing. Literal API values (`APP_IPHONE_67`) work too.
+*Advanced* holds two things: the locale for screenshots with no language folder,
+and replace-vs-append.
+
+## The command line
+
+```bash
+appstore-snapshots scan -d ./iPhone-6.9 -d ./iPad-13-Landscape    # no network calls
+appstore-snapshots upload -d ./iPhone-6.9 -b com.example.myapp --dry-run
+appstore-snapshots upload -d ./iPhone-6.9 -b com.example.myapp
+appstore-snapshots --help                                          # the rest
+```
+
+## Folder names
+
+Separators, case and orientation are ignored, so `iPhone-6.9`, `iphone_69` and
+`iPhone-6.9-Portrait` all mean the same thing.
 
 | Folder | Display type |
 | --- | --- |
 | `iPhone-6.9`, `iPhone-6.7` | `APP_IPHONE_67` |
-| `iPhone-6.5` | `APP_IPHONE_65` |
-| `iPhone-6.1` | `APP_IPHONE_61` |
-| `iPhone-5.5` | `APP_IPHONE_55` |
 | `iPad-13-Landscape`, `iPad-12.9` | `APP_IPAD_PRO_3GEN_129` |
-| `iPad-11` | `APP_IPAD_PRO_3GEN_11` |
-| `iPad-9.7` | `APP_IPAD_97` |
-| `Mac`, `Apple-TV`, `Vision-Pro` | `APP_DESKTOP`, `APP_APPLE_TV`, `APP_APPLE_VISION_PRO` |
-| `Apple-Watch-Ultra`, `Watch-Series-7` | `APP_WATCH_ULTRA`, `APP_WATCH_SERIES_7` |
+| `Mac`, `Apple-Watch-Ultra`, `Apple-TV` | `APP_DESKTOP`, `APP_WATCH_ULTRA`, `APP_APPLE_TV` |
 
-> Apple never added separate enum values for the 6.9-inch iPhone or the 13-inch
-> iPad — those screenshots belong in the 6.7-inch and 12.9-inch (3rd gen) display
-> types, whose accepted resolutions were widened instead. That is why both map to
-> the same value above.
+`appstore-snapshots devices` prints the full list. Language folders are normalised
+to App Store locale codes, which are irregular: `it-IT` becomes `it` and `zh-CN`
+becomes `zh-Hans`, while `de-DE` and `pt-BR` keep their region.
 
-**Languages.** App Store locale codes are irregular: `de-DE` and `pt-BR` carry a
-region, but Italian is just `it`. Folders are normalised accordingly —
-`it-IT`, `it_it` and `Italian` all become `it`; `zh-CN` and `zh-Hans` become
-`zh-Hans`.
-
-## Custom names
-
-Anything the guesser cannot handle goes in a `snapshots.json` next to your device
-folders (see [`snapshots.example.json`](snapshots.example.json)):
+For a name it cannot guess, drop a `snapshots.json` beside your folders:
 
 ```json
-{
-  "bundle_id": "com.example.myapp",
-  "devices": { "Hero-Shots-Big-Phone": "APP_IPHONE_67" },
-  "languages": { "brazil": "pt-BR" }
-}
+{ "devices": { "Hero-Shots": "APP_IPHONE_67" }, "languages": { "brazil": "pt-BR" } }
 ```
 
-Overrides win over everything else. The UI picks the file up automatically; the
-CLI takes `--config` too. Values are validated against the real API enums, so a typo
-is caught before any network call.
+Handing it a parent folder instead of individual device folders works too, and
+the inverted `<language>/<device>/` layout is recognised automatically.
 
-## Other layouts
+## Worth knowing
 
-When you hand it a **parent** folder rather than device folders, it also
-recognises two inverted arrangements:
+* Uploading **replaces** what is already in each set, and a set holds at most 10
+  images. Use `--keep-existing` to append instead.
+* Apple never added separate display types for the 6.9-inch iPhone or the 13-inch
+  iPad. Those screenshots belong to the 6.7-inch and 12.9-inch types, whose
+  accepted resolutions were widened instead.
+* The target version has to be editable. If there isn't one, create the next
+  version in App Store Connect first.
 
-* `<language>/<device>/*.png` — detected automatically.
-* `<language>/*.png` with no device folder — images are grouped by their pixel
-  size, using the known App Store screenshot resolutions.
-
-`--layout` overrides the detection.
-
----
-
-## Project layout
-
-```
-src/appstore_snapshots/
-  errors.py            every exception the package raises
-  models.py            Screenshot, ScreenshotSet, ScanResult, ProgressEvent…
-  cli.py               typer CLI
-
-  naming/              folder name -> App Store Connect value
-    display_types.py     …-> screenshotDisplayType
-    locales.py           …-> App Store locale
-
-  scanning/            folders -> ScreenshotSet objects
-    scanner.py           scan_device / scan_devices / scan
-    config.py            snapshots.json folder-name overrides
-
-  connect/             everything that talks to App Store Connect
-    auth.py              ES256 JWT from the .p8 + Key ID + Issuer ID
-    env.py               .env loading
-    client.py            REST client (apps, versions, screenshots)
-    uploader.py          reserve -> upload -> commit -> reorder
-
-  ui/
-    streamlit_app.py     the page
-    folder_picker.py     folder input + Finder dialog
-
-streamlit_app.py       root launcher for `streamlit run`
-.streamlit/config.toml
-.env.example           copy to .env and fill in
-.python-version        3.13, used by `uv sync`
-```
-
-`errors` and `models` stay at the top level because all three sub-packages import
-them; nothing else is shared sideways.
-
-Uploading one image is a four-step handshake: reserve an `appScreenshot` record
-to get pre-signed upload operations, PUT the bytes to each operation, commit with
-the file's MD5, then PATCH the set's relationship to fix the order. A reservation
-that fails part-way is deleted so no half-uploaded image is left behind.
-
-## Tests
+## Development
 
 ```bash
 uv run pytest
+uv run ruff check . && uv run ruff format .
 ```
 
-Every push and pull request to `main` runs the same checks on Ubuntu and macOS
-via [GitHub Actions](.github/workflows/ci.yml): `ruff check`, `ruff format
---check` and `pytest`. macOS is in the matrix because that is where the tool is
-used, and its case-insensitive filesystem is something the folder-name tests
-care about.
+CI runs the same checks on Ubuntu and macOS for every push and pull request.
 
-## Safety notes
-
-* `.p8` files are gitignored; the UI never writes the key to disk.
-* `appstore-snapshots upload --dry-run` plans a run without making a single
-  write call. Worth doing before the first real upload.
-* Uploading **replaces** a set's contents by default. Check the plan first.
+The package is split by role: `naming/` maps folder names to App Store values,
+`scanning/` turns folders into screenshot sets, `connect/` does auth, REST and
+uploading, and `ui/` is the Streamlit page.
